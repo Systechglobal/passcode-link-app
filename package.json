@@ -1,0 +1,14 @@
+{
+  "name": "passcode-link-app",
+  "version": "1.0.0",
+  "description": "Encrypted passcode-protected message link app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "crypto-js": "^4.2.0",
+    "body-parser": "^1.20.2"
+  }
+}
