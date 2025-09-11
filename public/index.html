@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Encrypted Message Link</title>
+</head>
+<body>
+  <h1>Encrypted Message Link</h1>
+  <p>Enter your message and passcode to generate a secure link.</p>
+
+  <textarea id="message" placeholder="Type your message..."></textarea><br>
+  <input type="password" id="passcode" placeholder="Passcode"><br>
+  <button onclick="createLink()">Create Link</button>
+
+  <h2>Generated Link</h2>
+  <input type="text" id="link" readonly style="width:100%"/>
+
+  <script src="app.js"></script>
+</body>
+</html>
