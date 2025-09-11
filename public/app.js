@@ -6,37 +6,37 @@ document.getElementById("encryptForm").addEventListener("submit", async (e) => {
   const passcode = document.getElementById("passcode").value;
 
   try {
-    const res = await fetch("/api/encrypt", {
+    const response = await fetch("/encrypt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, passcode }),
     });
 
-    const data = await res.json();
+    const data = await response.json();
 
-    if (data.error) {
-      alert("❌ " + data.error);
-      return;
-    }
+    if (data.encrypted) {
+      const url = `${window.location.origin}?data=${encodeURIComponent(
+        data.encrypted
+      )}`;
 
-    const { iv, encrypted } = data;
-    const link = `${window.location.origin}?iv=${iv}&content=${encrypted}`;
+      // Show encrypted link + copy button
+      const encryptedLinkDiv = document.getElementById("encryptedLink");
+      encryptedLinkDiv.innerHTML = `
+        <a href="${url}" target="_blank">${url}</a>
+        <button onclick="navigator.clipboard.writeText('${url}').then(() => showToast('✅ Link copied manually!'))">
+          Copy Link
+        </button>
+      `;
 
-    // Show link in page
-    document.getElementById("encryptedLink").innerHTML =
-      `<a href="${link}" target="_blank">${link}</a>`;
-
-    // ✅ Auto-copy to clipboard + toast
-    navigator.clipboard.writeText(link)
-      .then(() => {
-        showToast("🔗 Encrypted link copied!");
-      })
-      .catch(err => {
-        console.error("Clipboard copy failed:", err);
+      // Auto-copy to clipboard
+      navigator.clipboard.writeText(url).then(() => {
+        showToast("✅ Link copied to clipboard!");
       });
-
+    } else {
+      showToast("❌ Encryption failed!");
+    }
   } catch (err) {
-    alert("❌ Encryption failed: " + err.message);
+    showToast("❌ Error: " + err.message);
   }
 });
 
@@ -44,57 +44,51 @@ document.getElementById("encryptForm").addEventListener("submit", async (e) => {
 document.getElementById("decryptForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
+  const encrypted = new URLSearchParams(window.location.search).get("data");
   const passcode = document.getElementById("decryptPasscode").value;
-  const urlParams = new URLSearchParams(window.location.search);
-  const iv = urlParams.get("iv");
-  const content = urlParams.get("content");
 
   try {
-    const res = await fetch("/api/decrypt", {
+    const response = await fetch("/decrypt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ passcode, iv, encrypted: content }),
+      body: JSON.stringify({ encrypted, passcode }),
     });
 
-    const data = await res.json();
+    const data = await response.json();
 
-    if (data.error) {
-      alert("❌ " + data.error);
-      return;
+    if (data.decrypted) {
+      document.getElementById("decryptedOutput").innerText =
+        "✅ Decrypted Message: " + data.decrypted;
+    } else {
+      showToast("❌ Wrong passcode or decryption failed.");
     }
-
-    document.getElementById("decryptedOutput").innerText = "🔓 " + data.message;
-
   } catch (err) {
-    alert("❌ Decryption failed: " + err.message);
+    showToast("❌ Error: " + err.message);
   }
 });
 
-// Show decrypt form if link has params
-const urlParams = new URLSearchParams(window.location.search);
-const iv = urlParams.get("iv");
-const content = urlParams.get("content");
+// Show decrypt form only if ?data= exists
+window.addEventListener("DOMContentLoaded", () => {
+  const encrypted = new URLSearchParams(window.location.search).get("data");
+  if (encrypted) {
+    document.getElementById("decryptForm").style.display = "block";
+  }
+});
 
-if (iv && content) {
-  document.getElementById("encryptForm").style.display = "none";
-  document.getElementById("decryptForm").style.display = "block";
-
-  // Autofocus passcode field
-  const decryptPasscodeField = document.getElementById("decryptPasscode");
-  decryptPasscodeField.focus();
-
-  // 📋 Paste from Clipboard button
-  const pasteButton = document.getElementById("pastePasscode");
-  pasteButton.onclick = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      decryptPasscodeField.value = text;
-      decryptPasscodeField.focus();
-    } catch (err) {
-      alert("❌ Failed to read clipboard: " + err.message);
+// 📋 Paste from Clipboard button
+document.getElementById("pastePasscode").addEventListener("click", async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text) {
+      document.getElementById("decryptPasscode").value = text;
+      showToast("📋 Passcode pasted!");
+    } else {
+      showToast("⚠️ Clipboard is empty");
     }
-  };
-}
+  } catch (err) {
+    showToast("❌ Cannot read clipboard: " + err.message);
+  }
+});
 
 // ✅ Toast helper
 function showToast(message) {
