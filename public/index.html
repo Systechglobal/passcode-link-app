@@ -1,20 +1,106 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Encrypted Message Link</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Passcode Link Chat</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    form {
+      background: #fff;
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 8px;
+      max-width: 500px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    input, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1em;
+    }
+    button {
+      background: #4cafef;
+      border: none;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+    button:hover {
+      background: #3a9dd8;
+    }
+    #encryptedOutput, #decryptedOutput {
+      margin-top: 15px;
+      padding: 10px;
+      background: #eef6ff;
+      border-radius: 6px;
+      font-size: 0.95em;
+      word-break: break-word;
+    }
+    #copyButton {
+      background: #28a745;
+      margin-top: 10px;
+    }
+    #copyButton:hover {
+      background: #218838;
+    }
+    #pastePasscode {
+      background: #6c757d;
+      margin-top: 10px;
+    }
+    #pastePasscode:hover {
+      background: #5a6268;
+    }
+  </style>
 </head>
 <body>
-  <h1>Encrypted Message Link</h1>
-  <p>Enter your message and passcode to generate a secure link.</p>
+  <h1>🔐 Passcode Link Chat</h1>
 
-  <textarea id="message" placeholder="Type your message..."></textarea><br>
-  <input type="password" id="passcode" placeholder="Passcode"><br>
-  <button onclick="createLink()">Create Link</button>
+  <!-- Encrypt Form -->
+  <form id="encryptForm">
+    <h2>Encrypt Message</h2>
+    <label for="message">Message:</label>
+    <textarea id="message" rows="4" required></textarea>
 
-  <h2>Generated Link</h2>
-  <input type="text" id="link" readonly style="width:100%"/>
+    <label for="passcode">Passcode (shared secret):</label>
+    <input type="password" id="passcode" required />
+
+    <button type="submit">Encrypt & Generate Link</button>
+    <div id="encryptedOutput"></div>
+    <button type="button" id="copyButton" style="display:none;">📋 Copy Link</button>
+  </form>
+
+  <!-- Decrypt Form -->
+  <form id="decryptForm" style="display:none;">
+    <h2>Decrypt Message</h2>
+    <label for="decryptPasscode">Enter Passcode:</label>
+    <input type="password" id="decryptPasscode" required />
+
+    <!-- Paste from clipboard button -->
+    <button type="button" id="pastePasscode">📋 Paste from Clipboard</button>
+
+    <button type="submit">Decrypt</button>
+    <div id="decryptedOutput"></div>
+  </form>
 
   <script src="app.js"></script>
 </body>
