@@ -92,3 +92,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+// ✅ Toast helper
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  toast.innerText = message;
+  toast.style.visibility = "visible";
+  toast.style.opacity = "1";
+  toast.style.bottom = "50px";
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.bottom = "30px";
+    setTimeout(() => {
+      toast.style.visibility = "hidden";
+    }, 500);
+  }, 2500);
+}
