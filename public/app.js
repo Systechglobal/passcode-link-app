@@ -1,97 +1,101 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const encryptForm = document.getElementById("encryptForm");
-  const decryptForm = document.getElementById("decryptForm");
-  const encryptedOutput = document.getElementById("encryptedOutput");
-  const decryptedOutput = document.getElementById("decryptedOutput");
-  const copyButton = document.getElementById("copyButton");
+// Handle encryption form
+document.getElementById("encryptForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-  // 🔒 Encrypt form
-  encryptForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const message = document.getElementById("message").value;
-    const passcode = document.getElementById("passcode").value;
+  const message = document.getElementById("message").value;
+  const passcode = document.getElementById("passcode").value;
 
-    try {
-      const response = await fetch("/api/encrypt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, passcode })
+  try {
+    const res = await fetch("/api/encrypt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, passcode }),
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+      alert("❌ " + data.error);
+      return;
+    }
+
+    const { iv, encrypted } = data;
+    const link = `${window.location.origin}?iv=${iv}&content=${encrypted}`;
+
+    // Show link in page
+    document.getElementById("encryptedLink").innerHTML =
+      `<a href="${link}" target="_blank">${link}</a>`;
+
+    // ✅ Auto-copy to clipboard + toast
+    navigator.clipboard.writeText(link)
+      .then(() => {
+        showToast("🔗 Encrypted link copied!");
+      })
+      .catch(err => {
+        console.error("Clipboard copy failed:", err);
       });
 
-      const data = await response.json();
+  } catch (err) {
+    alert("❌ Encryption failed: " + err.message);
+  }
+});
 
-      if (response.ok) {
-        // Create sharable link
-        const link = `${window.location.origin}/public/index.html?iv=${data.iv}&content=${data.content}`;
-        encryptedOutput.innerHTML = `
-          <p>✅ Encrypted link (share this):</p>
-          <a href="${link}" target="_blank">${link}</a>
-        `;
+// Handle decryption form
+document.getElementById("decryptForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-        // Show copy button
-        copyButton.style.display = "inline-block";
-        copyButton.onclick = () => {
-          navigator.clipboard.writeText(link).then(() => {
-            copyButton.textContent = "✅ Copied!";
-            setTimeout(() => (copyButton.textContent = "📋 Copy Link"), 2000);
-          });
-        };
-      } else {
-        encryptedOutput.innerHTML = `<p style="color:red;">❌ Error: ${data.error}</p>`;
-      }
-    } catch (err) {
-      encryptedOutput.innerHTML = `<p style="color:red;">❌ Error: ${err.message}</p>`;
-    }
-  });
-
-  // 🔓 Auto-fill decrypt form if link params exist
+  const passcode = document.getElementById("decryptPasscode").value;
   const urlParams = new URLSearchParams(window.location.search);
   const iv = urlParams.get("iv");
   const content = urlParams.get("content");
 
-  if (iv && content) {
-    decryptForm.style.display = "block";
-
-    // Autofocus passcode field for user convenience
-    const decryptPasscodeField = document.getElementById("decryptPasscode");
-    decryptPasscodeField.focus();
-
-    // 📋 Paste from Clipboard button
-    const pasteButton = document.getElementById("pastePasscode");
-    pasteButton.onclick = async () => {
-      try {
-        const text = await navigator.clipboard.readText();
-        decryptPasscodeField.value = text;
-        decryptPasscodeField.focus();
-      } catch (err) {
-        alert("❌ Failed to read clipboard: " + err.message);
-      }
-    };
-
-    decryptForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const passcode = decryptPasscodeField.value;
-
-      try {
-        const response = await fetch("/api/decrypt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ iv, content, passcode })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          decryptedOutput.innerHTML = `<p>🔓 Message: ${data.message}</p>`;
-        } else {
-          decryptedOutput.innerHTML = `<p style="color:red;">❌ Error: ${data.error}</p>`;
-        }
-      } catch (err) {
-        decryptedOutput.innerHTML = `<p style="color:red;">❌ Error: ${err.message}</p>`;
-      }
+  try {
+    const res = await fetch("/api/decrypt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passcode, iv, encrypted: content }),
     });
+
+    const data = await res.json();
+
+    if (data.error) {
+      alert("❌ " + data.error);
+      return;
+    }
+
+    document.getElementById("decryptedOutput").innerText = "🔓 " + data.message;
+
+  } catch (err) {
+    alert("❌ Decryption failed: " + err.message);
   }
 });
+
+// Show decrypt form if link has params
+const urlParams = new URLSearchParams(window.location.search);
+const iv = urlParams.get("iv");
+const content = urlParams.get("content");
+
+if (iv && content) {
+  document.getElementById("encryptForm").style.display = "none";
+  document.getElementById("decryptForm").style.display = "block";
+
+  // Autofocus passcode field
+  const decryptPasscodeField = document.getElementById("decryptPasscode");
+  decryptPasscodeField.focus();
+
+  // 📋 Paste from Clipboard button
+  const pasteButton = document.getElementById("pastePasscode");
+  pasteButton.onclick = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      decryptPasscodeField.value = text;
+      decryptPasscodeField.focus();
+    } catch (err) {
+      alert("❌ Failed to read clipboard: " + err.message);
+    }
+  };
+}
+
 // ✅ Toast helper
 function showToast(message) {
   const toast = document.getElementById("toast");
