@@ -1,127 +1,88 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Passcode Link Chat</title>
+  <title>Secure Messenger</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f5f7fa;
-      margin: 0;
+      max-width: 600px;
+      margin: 40px auto;
       padding: 20px;
+      background: #f9fafb;
     }
-    h1 {
-      color: #333;
-      text-align: center;
-    }
-    form {
-      background: #fff;
-      padding: 20px;
-      margin: 20px auto;
-      border-radius: 8px;
-      max-width: 500px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    label {
-      display: block;
-      margin-top: 10px;
-      font-weight: bold;
+    h2 {
+      color: #111827;
     }
     input, textarea, button {
       width: 100%;
+      margin: 8px 0;
       padding: 10px;
-      margin-top: 5px;
       border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 1em;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
     }
     button {
-      background: #4cafef;
-      border: none;
+      background: #2563eb;
       color: white;
       font-weight: bold;
       cursor: pointer;
-      margin-top: 15px;
     }
     button:hover {
-      background: #3a9dd8;
+      background: #1d4ed8;
     }
-    #encryptedOutput, #decryptedOutput {
-      margin-top: 15px;
-      padding: 10px;
-      background: #eef6ff;
+    #encryptedLink a {
+      word-break: break-all;
+      color: #16a34a;
+    }
+    #toast {
+      visibility: hidden;
+      min-width: 200px;
+      background: #333;
+      color: #fff;
+      text-align: center;
       border-radius: 6px;
-      font-size: 0.95em;
-      word-break: break-word;
+      padding: 12px;
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 30px;
+      opacity: 0;
+      transition: opacity 0.5s, bottom 0.5s;
+      z-index: 1000;
     }
-    #copyButton {
-      background: #28a745;
-      margin-top: 10px;
+    .flex-row {
+      display: flex;
+      gap: 8px;
     }
-    #copyButton:hover {
-      background: #218838;
-    }
-    #pastePasscode {
-      background: #6c757d;
-      margin-top: 10px;
-    }
-    #pastePasscode:hover {
-      background: #5a6268;
+    .flex-row input {
+      flex: 1;
     }
   </style>
 </head>
 <body>
-  <h1>🔐 Passcode Link Chat</h1>
-
-  <!-- Encrypt Form -->
+  <h2>🔐 Encrypt a Message</h2>
   <form id="encryptForm">
-    <h2>Encrypt Message</h2>
-    <label for="message">Message:</label>
-    <textarea id="message" rows="4" required></textarea>
-
-    <label for="passcode">Passcode (shared secret):</label>
-    <input type="password" id="passcode" required />
-
+    <textarea id="message" placeholder="Enter your secret message" required></textarea>
+    <input type="password" id="passcode" placeholder="Enter a passcode" required />
     <button type="submit">Encrypt & Generate Link</button>
-    <div id="encryptedOutput"></div>
-    <button type="button" id="copyButton" style="display:none;">📋 Copy Link</button>
   </form>
+  <div id="encryptedLink"></div>
 
-  <!-- Decrypt Form -->
-  <form id="decryptForm" style="display:none;">
-    <h2>Decrypt Message</h2>
-    <label for="decryptPasscode">Enter Passcode:</label>
-    <input type="password" id="decryptPasscode" required />
-
-    <!-- Paste from clipboard button -->
-    <button type="button" id="pastePasscode">📋 Paste from Clipboard</button>
-
+  <h2>🔓 Decrypt a Message</h2>
+  <form id="decryptForm" style="display: none;">
+    <div class="flex-row">
+      <input type="password" id="decryptPasscode" placeholder="Enter passcode" required />
+      <button type="button" id="pastePasscode">📋 Paste</button>
+    </div>
     <button type="submit">Decrypt</button>
-    <div id="decryptedOutput"></div>
   </form>
+  <div id="decryptedOutput"></div>
 
-  <script src="app.js"></script>
-<!-- Toast Notification -->
-<div id="toast" style="
-  visibility: hidden;
-  min-width: 220px;
-  margin-left: -110px;
-  background-color: #333;
-  color: #fff;
-  text-align: center;
-  border-radius: 8px;
-  padding: 12px;
-  position: fixed;
-  left: 50%;
-  bottom: 30px;
-  font-size: 15px;
-  z-index: 1000;
-  opacity: 0;
-  transition: opacity 0.5s, bottom 0.5s;
-">
-  🔗 Encrypted link copied!
-</div>
+  <!-- ✅ Toast container -->
+  <div id="toast"></div>
+
+  <script src="/app.js"></script>
 </body>
 </html>
