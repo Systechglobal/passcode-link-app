@@ -3,86 +3,139 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Secure Messenger</title>
+  <title>Secure Message App</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: 40px auto;
+      margin: 0;
+      padding: 0;
+      background: #f7f9fc;
+      color: #222;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .container {
+      width: 100%;
+      max-width: 480px;
       padding: 20px;
-      background: #f9fafb;
     }
     h2 {
-      color: #111827;
+      margin-bottom: 12px;
+      text-align: center;
+      color: #007bff;
+    }
+    form {
+      background: white;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    label {
+      font-size: 14px;
+      font-weight: bold;
+      display: block;
+      margin-top: 10px;
     }
     input, textarea, button {
       width: 100%;
-      margin: 8px 0;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid #d1d5db;
-      font-size: 14px;
+      margin-top: 6px;
+      margin-bottom: 12px;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 80px;
     }
     button {
-      background: #2563eb;
+      background: #007bff;
       color: white;
-      font-weight: bold;
+      border: none;
       cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
     }
     button:hover {
-      background: #1d4ed8;
+      background: #0056b3;
     }
-    #encryptedLink a {
+    #encryptedLink, #decryptedOutput {
+      margin-top: 10px;
+      padding: 12px;
+      background: #e9f5ff;
+      border: 1px solid #007bff;
+      border-radius: 6px;
       word-break: break-all;
-      color: #16a34a;
+      font-size: 14px;
     }
     #toast {
       visibility: hidden;
-      min-width: 200px;
+      min-width: 220px;
+      margin-left: -110px;
       background: #333;
       color: #fff;
       text-align: center;
-      border-radius: 6px;
+      border-radius: 4px;
       padding: 12px;
       position: fixed;
       left: 50%;
-      transform: translateX(-50%);
       bottom: 30px;
+      font-size: 14px;
+      z-index: 1000;
       opacity: 0;
       transition: opacity 0.5s, bottom 0.5s;
-      z-index: 1000;
     }
-    .flex-row {
-      display: flex;
-      gap: 8px;
-    }
-    .flex-row input {
-      flex: 1;
+    /* Mobile tweaks */
+    @media (max-width: 600px) {
+      body {
+        background: #eef3f9;
+      }
+      form {
+        padding: 12px;
+      }
+      input, textarea, button {
+        font-size: 14px;
+        padding: 10px;
+      }
     }
   </style>
 </head>
 <body>
-  <h2>🔐 Encrypt a Message</h2>
-  <form id="encryptForm">
-    <textarea id="message" placeholder="Enter your secret message" required></textarea>
-    <input type="password" id="passcode" placeholder="Enter a passcode" required />
-    <button type="submit">Encrypt & Generate Link</button>
-  </form>
-  <div id="encryptedLink"></div>
+  <div class="container">
+    <h2>🔒 Secure Message App</h2>
 
-  <h2>🔓 Decrypt a Message</h2>
-  <form id="decryptForm" style="display: none;">
-    <div class="flex-row">
-      <input type="password" id="decryptPasscode" placeholder="Enter passcode" required />
-      <button type="button" id="pastePasscode">📋 Paste</button>
-    </div>
-    <button type="submit">Decrypt</button>
-  </form>
-  <div id="decryptedOutput"></div>
+    <!-- Encrypt Form -->
+    <form id="encryptForm">
+      <label for="message">Message:</label>
+      <textarea id="message" required></textarea>
 
-  <!-- ✅ Toast container -->
+      <label for="passcode">Passcode:</label>
+      <input type="password" id="passcode" required />
+
+      <button type="submit">Encrypt & Generate Link</button>
+      <div id="encryptedLink"></div>
+    </form>
+
+    <!-- Decrypt Form -->
+    <form id="decryptForm" style="display:none;">
+      <label for="decryptPasscode">Enter Passcode:</label>
+      <input type="password" id="decryptPasscode" required />
+
+      <button type="submit">Decrypt</button>
+      <button type="button" id="pastePasscode">📋 Paste from Clipboard</button>
+
+      <div id="decryptedOutput"></div>
+    </form>
+  </div>
+
+  <!-- Toast -->
   <div id="toast"></div>
 
+  <!-- App Logic -->
   <script src="/app.js"></script>
 </body>
 </html>
