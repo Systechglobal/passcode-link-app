@@ -57,8 +57,16 @@ document.getElementById("decryptForm").addEventListener("submit", async (e) => {
     const data = await response.json();
 
     if (data.decrypted) {
-      document.getElementById("decryptedOutput").innerText =
-        "✅ Decrypted Message: " + data.decrypted;
+      const decryptedOutput = document.getElementById("decryptedOutput");
+      decryptedOutput.innerHTML = `
+        ✅ Decrypted Message: <b>${data.decrypted}</b><br><br>
+        <button onclick="navigator.clipboard.writeText('${data.decrypted}').then(() => showToast('📋 Message copied!'))">
+          Copy Decrypted Message
+        </button>
+        <button onclick="document.getElementById('decryptedOutput').innerHTML=''">
+          ❌ Clear Message
+        </button>
+      `;
     } else {
       showToast("❌ Wrong passcode or decryption failed.");
     }
