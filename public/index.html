@@ -1,141 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Secure Message App</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f7f9fc;
-      color: #222;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
+    :root{
+      --primary:#007bff;
+      --bg:#f7f9fc;
+      --card:#ffffff;
+      --text:#222;
+      --muted:#6b7280;
     }
-    .container {
-      width: 100%;
-      max-width: 480px;
-      padding: 20px;
+    body{
+      margin:0;
+      padding:0;
+      font-family:system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background:var(--bg);
+      color:var(--text);
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      min-height:100vh;
     }
-    h2 {
-      margin-bottom: 12px;
-      text-align: center;
-      color: #007bff;
+    .container{
+      width:100%;
+      max-width:520px;
+      padding:20px;
+      box-sizing:border-box;
     }
-    form {
-      background: white;
-      padding: 16px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
-    }
-    label {
-      font-size: 14px;
-      font-weight: bold;
-      display: block;
-      margin-top: 10px;
-    }
-    input, textarea, button {
-      width: 100%;
-      margin-top: 6px;
-      margin-bottom: 12px;
-      padding: 12px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 15px;
-    }
-    textarea {
-      resize: vertical;
-      min-height: 80px;
-    }
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-      transition: background 0.3s;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    #encryptedLink, #decryptedOutput {
-      margin-top: 10px;
-      padding: 12px;
-      background: #e9f5ff;
-      border: 1px solid #007bff;
-      border-radius: 6px;
-      word-break: break-all;
-      font-size: 14px;
-    }
-    #toast {
-      visibility: hidden;
-      min-width: 220px;
-      margin-left: -110px;
-      background: #333;
-      color: #fff;
-      text-align: center;
-      border-radius: 4px;
-      padding: 12px;
-      position: fixed;
-      left: 50%;
-      bottom: 30px;
-      font-size: 14px;
-      z-index: 1000;
-      opacity: 0;
-      transition: opacity 0.5s, bottom 0.5s;
-    }
-    /* Mobile tweaks */
-    @media (max-width: 600px) {
-      body {
-        background: #eef3f9;
-      }
-      form {
-        padding: 12px;
-      }
-      input, textarea, button {
-        font-size: 14px;
-        padding: 10px;
-      }
+    h1{ text-align:center; margin:6px 0 18px; color:var(--primary); font-size:20px;}
+    form{ background:var(--card); padding:14px; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,0.06); margin-bottom:16px;}
+    label{ display:block; font-weight:600; margin-top:8px; font-size:13px; color:var(--muted); }
+    textarea,input,select,button{ width:100%; box-sizing:border-box; margin-top:8px; padding:12px; font-size:14px; border-radius:8px; border:1px solid #d1d5db; }
+    textarea{ min-height:90px; resize:vertical; }
+    button{ background:var(--primary); color:#fff; border:none; cursor:pointer; font-weight:700; }
+    button.secondary{ background:#6b7280; }
+    #encryptedLink, #decryptedOutput{ margin-top:12px; padding:12px; border-radius:8px; background:#e8f5ff; border:1px solid rgba(0,123,255,0.15); word-break:break-word; font-size:14px;}
+    #toast{ visibility:hidden; min-width:220px; background:#111; color:#fff; text-align:center; border-radius:6px; padding:10px 14px; position:fixed; left:50%; transform:translateX(-50%); bottom:26px; opacity:0; transition:opacity .35s, bottom .35s; z-index:9999;}
+    /* Dark mode */
+    body.dark{ --bg:#0b1020; --card:#0f1724; --text:#e6eef8; --muted:#9aa6bd; --primary:#3b82f6; }
+    body.dark form{ box-shadow: none; border:1px solid rgba(255,255,255,0.03); }
+    body.dark #encryptedLink, body.dark #decryptedOutput{ background:#071025; border:1px solid rgba(255,255,255,0.03); color:var(--text); }
+    /* small helpers */
+    .row{ display:flex; gap:8px; }
+    .row .half{ flex:1; }
+    .meta{ font-size:13px; color:var(--muted); margin-top:8px; }
+    #darkModeToggle{ position:fixed; top:12px; right:12px; width:44px; height:44px; border-radius:999px; border: none; cursor:pointer; background:#111; color:#fff; font-size:18px; z-index:999; }
+    body.dark #darkModeToggle{ background:#fff; color:#111; }
+    @media(max-width:520px){
+      .container{ padding:14px; }
+      h1{ font-size:18px; }
     }
   </style>
 </head>
 <body>
+  <button id="darkModeToggle" title="Toggle dark mode">🌙</button>
+
   <div class="container">
-    <h2>🔒 Secure Message App</h2>
+    <h1>🔐 Secure Message — Encrypt & Share</h1>
 
-    <!-- Encrypt Form -->
-    <form id="encryptForm">
-      <label for="message">Message:</label>
-      <textarea id="message" required></textarea>
+    <!-- Encrypt -->
+    <form id="encryptForm" aria-label="encrypt form">
+      <label for="message">Message</label>
+      <textarea id="message" placeholder="Type your secret message..." required></textarea>
 
-      <label for="passcode">Passcode:</label>
-      <input type="password" id="passcode" required />
+      <label for="passcode">Passcode (shared secret)</label>
+      <input id="passcode" type="password" placeholder="Enter a passcode" required />
 
+      <label for="expiry">Message Expiry</label>
+      <select id="expiry" aria-label="expiry">
+        <option value="none">No expiry</option>
+        <option value="burn">🔥 Burn after Reading</option>
+        <option value="1">👁 One-time View</option>
+        <option value="24h">⏳ 24 hours</option>
+      </select>
+
+      <div class="meta">Tip: share the passcode separately (WhatsApp, SMS). The link alone cannot be decrypted.</div>
       <button type="submit">Encrypt & Generate Link</button>
-      <div id="encryptedLink"></div>
+      <div id="encryptedLink" aria-live="polite"></div>
     </form>
 
-    <!-- Decrypt Form -->
-    <form id="decryptForm" style="display:none;">
-      <label for="decryptPasscode">Enter Passcode:</label>
-      <input type="password" id="decryptPasscode" required />
-
-      <button type="submit">Decrypt</button>
-      <button type="button" id="pastePasscode">📋 Paste from Clipboard</button>
-
-      <div id="decryptedOutput"></div>
+    <!-- Decrypt -->
+    <form id="decryptForm" style="display:none;" aria-label="decrypt form">
+      <!-- expiry info is injected dynamically -->
+      <label for="decryptPasscode">Enter Passcode</label>
+      <input id="decryptPasscode" type="password" placeholder="Enter the passcode" required />
+      <div class="row">
+        <button type="submit">Decrypt</button>
+        <button type="button" id="pastePasscode" class="secondary">📋 Paste</button>
+      </div>
+      <div id="decryptedOutput" aria-live="polite"></div>
     </form>
   </div>
 
-  <!-- Toast -->
-  <div id="toast"></div>
+  <div id="toast" role="status" aria-live="polite">Copied</div>
 
-  <!-- App Logic -->
   <script src="/app.js"></script>
 </body>
 </html>
