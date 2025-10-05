@@ -1,81 +1,39 @@
-// public/app.js (complete)
-// Uses Web Crypto API for AES-GCM. All encryption/decryption happens client-side.
+// public/app.js (media-capable)
+// Client-side encryption with file support and conditional download
+// WARNING: URLs can be very long for files. Limit: ~150KB. For larger files use server upload.
 
-/////////////////////// helpers ///////////////////////
-
-function showToast(message) {
-  const toast = document.getElementById("toast");
-  if (!toast) return;
-  toast.textContent = message;
-  toast.style.visibility = "visible";
-  toast.style.opacity = "1";
-  toast.style.bottom = "50px";
-  setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.bottom = "30px";
-    setTimeout(() => (toast.style.visibility = "hidden"), 350);
-  }, 2200);
+//////////////////// helpers ////////////////////
+function showToast(msg) {
+  const t = document.getElementById("toast"); if (!t) return;
+  t.textContent = msg; t.style.visibility = "visible"; t.style.opacity = "1"; t.style.bottom = "50px";
+  setTimeout(()=>{ t.style.opacity="0"; t.style.bottom="30px"; setTimeout(()=>t.style.visibility="hidden",350); }, 2200);
 }
+function escapeHtml(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 
-function escapeHtml(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-////////////////////// crypto utilities //////////////////////
-
-// Derive AES-GCM 256 key from passcode + salt using PBKDF2
-async function getKey(passcode, salt) {
+//////////////////// crypto ////////////////////
+async function getKey(passcode, salt){
   const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(passcode),
-    "PBKDF2",
-    false,
-    ["deriveKey"]
-  );
-  return crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt,
-      iterations: 100000,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
+  const keyMat = await crypto.subtle.importKey("raw", enc.encode(passcode), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:100000,hash:"SHA-256"}, keyMat, {name:"AES-GCM",length:256}, false, ["encrypt","decrypt"]);
 }
-
-// Encrypt returns base64(payload) where payload = salt(16) || iv(12) || ciphertext
-async function encryptMessage(message, passcode) {
-  const enc = new TextEncoder();
+async function encryptBytes(bytes, passcode){
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await getKey(passcode, salt);
-  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(message));
-  const payload = new Uint8Array([...salt, ...iv, ...new Uint8Array(ciphertext)]);
-  // convert to base64
-  let binary = "";
-  for (let i = 0; i < payload.length; i++) binary += String.fromCharCode(payload[i]);
-  return btoa(binary);
+  const cipher = await crypto.subtle.encrypt({name:"AES-GCM",iv}, key, bytes);
+  const payload = new Uint8Array([...salt,...iv,...new Uint8Array(cipher)]);
+  let bin=""; for(let i=0;i<payload.length;i++) bin+=String.fromCharCode(payload[i]);
+  return btoa(bin);
 }
-
-// Decrypt expects base64 payload produced above
-async function decryptMessage(encoded, passcode) {
-  const binary = atob(encoded);
-  const data = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) data[i] = binary.charCodeAt(i);
-  const salt = data.slice(0, 16);
-  const iv = data.slice(16, 28);
-  const ciphertext = data.slice(28);
+async function decryptToBytes(b64, passcode){
+  const bin = atob(b64); const data=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) data[i]=bin.charCodeAt(i);
+  const salt = data.slice(0,16); const iv = data.slice(16,28); const cipher = data.slice(28);
   const key = await getKey(passcode, salt);
-  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
-  return new TextDecoder().decode(decrypted);
+  const plain = await crypto.subtle.decrypt({name:"AES-GCM", iv}, key, cipher);
+  return new Uint8Array(plain);
 }
 
-/////////////////////// DOM refs ///////////////////////
-
+//////////////////// DOM refs ////////////////////
 const encryptForm = document.getElementById("encryptForm");
 const decryptForm = document.getElementById("decryptForm");
 const encryptedLinkDiv = document.getElementById("encryptedLink");
@@ -83,231 +41,202 @@ const decryptedOutputDiv = document.getElementById("decryptedOutput");
 const darkModeToggle = document.getElementById("darkModeToggle");
 const pastePassBtn = document.getElementById("pastePasscode");
 
-///////////////////// state for anti-brute ///////////////////////
-let failedAttempts = 0;
-const MAX_FAILED = 3;
+//////////////////// settings ////////////////////
+const MAX_BYTES = 150 * 1024; // ~150 KB recommended
 
-///////////////////// UI: dark mode ///////////////////////
+//////////////////// dark mode ////////////////////
+function applyDark(){ if(localStorage.getItem("darkMode")==="true"){ document.body.classList.add("dark"); darkModeToggle.textContent="☀️"; } else { document.body.classList.remove("dark"); darkModeToggle.textContent="🌙"; } }
+darkModeToggle.addEventListener("click",()=>{ const on=!document.body.classList.contains("dark"); localStorage.setItem("darkMode", on?"true":"false"); applyDark(); });
+applyDark();
 
-function applyDarkPref() {
-  if (localStorage.getItem("darkMode") === "true") {
-    document.body.classList.add("dark");
-    darkModeToggle.textContent = "☀️";
-  } else {
-    document.body.classList.remove("dark");
-    darkModeToggle.textContent = "🌙";
-  }
-}
-darkModeToggle.addEventListener("click", () => {
-  const on = !document.body.classList.contains("dark");
-  localStorage.setItem("darkMode", on ? "true" : "false");
-  applyDarkPref();
-});
-applyDarkPref();
-
-///////////////////// Encrypt handler ///////////////////////
-
-encryptForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const message = document.getElementById("message").value.trim();
+//////////////////// encrypt ////////////////////
+encryptForm?.addEventListener("submit", async (ev)=>{
+  ev.preventDefault();
+  const message = document.getElementById("message").value || "";
   const passcode = document.getElementById("passcode").value.trim();
-  const expiry = document.getElementById("expiry").value; // none | burn | 1 | 24h
+  const expiry = document.getElementById("expiry").value;
+  const allowDL = document.getElementById("allowDownload").checked;
+  const fileInput = document.getElementById("file");
+  if(!passcode){ showToast("Enter a passcode"); return; }
 
-  if (!message || !passcode) {
-    showToast("Enter message and a passcode");
-    return;
+  // prepare payload object {type, filename?, content? (base64 encrypted), text?}
+  let payload = { type: "text", text: message || "" };
+
+  if(fileInput && fileInput.files && fileInput.files[0]){
+    const f = fileInput.files[0];
+    if(f.size > MAX_BYTES){ showToast(`File too large (max ${Math.round(MAX_BYTES/1024)}KB). Use server upload.`); return; }
+    // read file as arrayBuffer
+    const arr = await f.arrayBuffer();
+    const u8 = new Uint8Array(arr);
+    try{
+      const encB64 = await encryptBytes(u8, passcode); // encrypt file bytes
+      payload = { type: "media", mediaName: f.name, mediaType: f.type, content: encB64, allowDownload: !!allowDL, text: message || "" };
+    }catch(err){ console.error(err); showToast("File encryption error"); return; }
+  }else{
+    // just text: encrypt the text bytes
+    try{
+      const encB64 = await encryptBytes(new TextEncoder().encode(message || ""), passcode);
+      payload = { type: "text", content: encB64 };
+    }catch(err){ console.error(err); showToast("Text encryption error"); return; }
   }
 
-  try {
-    const encoded = await encryptMessage(message, passcode);
-    let url = `${window.location.origin}${window.location.pathname}?msg=${encodeURIComponent(encoded)}`;
+  // Encode payload as JSON then b64 -> but that increases size; instead we'll embed fields
+  // We'll store: msg=<payload.content> & type & name & mtype & allowDownload & ttl & exp
+  // If payload.type === "media", content is encrypted file b64. If type === "text", content is encrypted text b64.
 
-    if (expiry && expiry !== "none") {
-      url += `&ttl=${encodeURIComponent(expiry)}`;
-      if (expiry === "24h") {
-        const exp = Date.now() + 24 * 60 * 60 * 1000;
-        url += `&exp=${exp}`;
-      }
-    }
-
-    encryptedLinkDiv.innerHTML = `
-      <div><strong>Share this link (passcode separately):</strong></div>
-      <div style="margin-top:8px;"><textarea readonly style="width:100%;height:72px;border-radius:8px;padding:8px;">${escapeHtml(url)}</textarea></div>
-      <div style="margin-top:8px;">
-        <button id="copyLink">📋 Copy Link</button>
-      </div>
-    `;
-    document.getElementById("copyLink").addEventListener("click", () => {
-      navigator.clipboard.writeText(url).then(() => showToast("Link copied"));
-    });
-
-    // Auto-copy silently (may fail on some browsers)
-    navigator.clipboard.writeText(url).then(() => showToast("Link copied")).catch(()=>{});
-
-  } catch (err) {
-    console.error(err);
-    showToast("Encryption error");
+  let baseContent = payload.content || "";
+  // Build URL
+  let url = `${window.location.origin}${window.location.pathname}?msg=${encodeURIComponent(baseContent)}&type=${encodeURIComponent(payload.type)}`;
+  if(payload.type === "media"){
+    url += `&name=${encodeURIComponent(payload.mediaName || "file")}&mtype=${encodeURIComponent(payload.mediaType || "")}&allowDL=${payload.allowDownload?1:0}`;
   }
+  if(payload.type === "text" && payload.text !== undefined){
+    // For text when we encrypted bytes separately, content holds encrypted text; nothing extra needed
+  }
+  if(expiry && expiry !== "none"){
+    url += `&ttl=${encodeURIComponent(expiry)}`;
+    if(expiry === "24h"){ const exp = Date.now() + 24*60*60*1000; url += `&exp=${exp}`; }
+  }
+
+  // show link UI
+  encryptedLinkDiv.innerHTML = `
+    <div><strong>Share this link (passcode separately):</strong></div>
+    <div style="margin-top:8px;"><textarea readonly style="width:100%;height:96px;border-radius:8px;padding:8px;">${escapeHtml(url)}</textarea></div>
+    <div style="margin-top:8px;"><button id="copyLink">📋 Copy Link</button></div>
+  `;
+  document.getElementById("copyLink").addEventListener("click", ()=>{ navigator.clipboard.writeText(url).then(()=>showToast("Link copied")); });
+
+  // silent auto-copy
+  navigator.clipboard.writeText(url).then(()=>showToast("Link copied")).catch(()=>{});
 });
 
-///////////////////// Decrypt handler ///////////////////////
+//////////////////// decrypt ////////////////////
+let failed = 0; const MAX_FAIL = 3;
 
-decryptForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const passcodeInput = document.getElementById("decryptPasscode");
-  const passcode = passcodeInput.value.trim();
-
+decryptForm?.addEventListener("submit", async (ev)=>{
+  ev.preventDefault();
+  const pass = document.getElementById("decryptPasscode").value.trim();
   const params = new URLSearchParams(window.location.search);
-  const encoded = params.get("msg");
-  const ttl = params.get("ttl"); // may be 'burn','1','24h' or undefined
+  const enc = params.get("msg");
+  const type = params.get("type") || "text";
+  const ttl = params.get("ttl");
   const exp = params.get("exp");
+  const name = params.get("name") || "";
+  const mtype = params.get("mtype") || "";
+  const allowDL = params.get("allowDL") === "1";
 
-  if (!encoded) {
-    showToast("No message found");
-    return;
-  }
-  if (!passcode) {
-    showToast("Enter passcode");
-    return;
-  }
+  if(!enc){ showToast("No message in link"); return; }
+  if(!pass){ showToast("Enter passcode"); return; }
+  if(failed >= MAX_FAIL){ history.replaceState({},document.title,window.location.pathname); decryptedOutputDiv.innerHTML="<p>🔒 Too many failed attempts. Link cleared.</p>"; return; }
 
-  // Anti-brute: if too many failed attempts, clear message from URL and block
-  if (failedAttempts >= MAX_FAILED) {
-    history.replaceState({}, document.title, window.location.pathname);
-    decryptedOutputDiv.innerHTML = "<p>🔒 Too many failed attempts. Link cleared.</p>";
-    return;
-  }
+  // pre-expiry check
+  if(ttl === "24h" && exp && Date.now() > parseInt(exp,10)){ decryptedOutputDiv.innerHTML="<p>❌ This message has expired.</p>"; history.replaceState({},document.title,window.location.pathname); return; }
 
-  // Handle ttl pre-checks
-  if (ttl === "24h" && exp) {
-    if (Date.now() > parseInt(exp, 10)) {
-      decryptedOutputDiv.innerHTML = "<p>❌ This message has expired.</p>";
-      history.replaceState({}, document.title, window.location.pathname); // remove payload for safety
-      return;
-    }
-  }
+  try{
+    // decrypt bytes
+    const plainBytes = await decryptToBytes(enc, pass);
+    // if media: show media blob
+    if(type === "media"){
+      // assemble blob
+      const blob = new Blob([plainBytes], { type: mtype || "application/octet-stream" });
+      const urlObj = URL.createObjectURL(blob);
+      let html = `<div style="margin-bottom:8px"><strong>Attached file:</strong> ${escapeHtml(name)}</div>`;
+      if(mtype.startsWith("image/")) html += `<img src="${urlObj}" alt="image" style="max-width:100%;border-radius:8px" />`;
+      else if(mtype.startsWith("video/")) html += `<video src="${urlObj}" controls style="width:100%;border-radius:8px"></video>`;
+      else if(mtype.startsWith("audio/")) html += `<audio src="${urlObj}" controls style="width:100%"></audio>`;
+      else html += `<div style="padding:8px;background:#fff;border-radius:6px;border:1px solid #ddd;">Preview not available for this file type.</div>`;
 
-  try {
-    const message = await decryptMessage(encoded, passcode);
+      // show download button only if sender allowed
+      if(allowDL){
+        html += `<div style="margin-top:8px"><a id="downloadFile" download="${escapeHtml(name)}" href="${urlObj}"><button>⬇️ Download File</button></a></div>`;
+      } else {
+        html += `<div style="margin-top:8px;color:#6b7280;font-size:13px;">Download disabled by sender.</div>`;
+      }
+      html += `<div style="margin-top:10px"><button id="clearMessage" class="secondary">🗑 Clear</button></div>`;
 
-    // Successful decryption: if burn or one-time, remove params so it cannot be reused
-    if (ttl === "burn" || ttl === "1") {
-      // Remove query string (clears encoded payload from URL)
-      history.replaceState({}, document.title, window.location.pathname);
-    }
+      decryptedOutputDiv.innerHTML = html;
+      document.getElementById("clearMessage").addEventListener("click", ()=>{ decryptedOutputDiv.innerHTML=""; URL.revokeObjectURL(urlObj); });
 
-    // Reset failed attempts on success
-    failedAttempts = 0;
+      // burn/one-time handling
+      if(ttl === "burn" || ttl === "1") history.replaceState({},document.title,window.location.pathname);
 
-    // Show decrypted message with copy & clear buttons
-    decryptedOutputDiv.innerHTML = `
-      <div><strong>Decrypted Message:</strong></div>
-      <div style="margin-top:8px;"><textarea readonly style="width:100%;height:90px;border-radius:8px;padding:8px;">${escapeHtml(message)}</textarea></div>
-      <div style="margin-top:8px; display:flex; gap:8px;">
-        <button id="copyMessage">📋 Copy Message</button>
-        <button id="clearMessage" class="secondary">🗑 Clear</button>
-      </div>
-      <div id="expiryInfo" style="margin-top:10px;color:#0b63b8;font-weight:600;"></div>
-    `;
+    } else { // text
+      const message = new TextDecoder().decode(plainBytes);
+      // display message and buttons
+      decryptedOutputDiv.innerHTML = `
+        <div><strong>Decrypted Message</strong></div>
+        <div style="margin-top:8px"><textarea readonly style="width:100%;height:120px;border-radius:8px;padding:8px;">${escapeHtml(message)}</textarea></div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button id="copyMsg">📋 Copy Message</button>
+          <button id="clearMsg" class="secondary">🗑 Clear</button>
+        </div>
+      `;
+      document.getElementById("copyMsg").addEventListener("click", ()=>{ navigator.clipboard.writeText(message).then(()=>showToast("Message copied")); });
+      document.getElementById("clearMsg").addEventListener("click", ()=>{ decryptedOutputDiv.innerHTML=""; });
 
-    document.getElementById("copyMessage").addEventListener("click", () => {
-      navigator.clipboard.writeText(message).then(()=>showToast("Message copied"));
-    });
-    document.getElementById("clearMessage").addEventListener("click", () => {
-      decryptedOutputDiv.innerHTML = "";
-    });
-
-    // Show expiry details and countdown if needed
-    const expiryInfo = document.getElementById("expiryInfo");
-    if (ttl === "burn") {
-      expiryInfo.innerText = "🔥 This message was set to burn after reading.";
-    } else if (ttl === "1") {
-      expiryInfo.innerText = "👁 This was a one-time view message.";
-    } else if (ttl === "24h" && exp) {
-      const expireAt = parseInt(exp, 10);
-      expiryInfo.innerText = `⏳ Expires at: ${new Date(expireAt).toLocaleString()}`;
-      startCountdown(expireAt, expiryInfo);
-    } else {
-      expiryInfo.innerText = "⏳ No expiry set.";
+      if(ttl === "burn" || ttl === "1") history.replaceState({},document.title,window.location.pathname);
     }
 
-  } catch (err) {
+    // on success reset failed
+    failed = 0;
+
+    // show expiry details (24h countdown)
+    if(ttl === "24h" && exp){
+      const info = document.createElement("div");
+      info.style.marginTop = "10px"; info.style.fontWeight = "600"; info.style.color = "#0b63b8";
+      decryptedOutputDiv.appendChild(info);
+      startCountdown(parseInt(exp,10), info);
+    }
+
+  }catch(err){
     console.error(err);
-    failedAttempts++;
+    failed++;
     showToast("Wrong passcode");
-    if (failedAttempts >= MAX_FAILED) {
-      // clear URL to prevent repeated attempts
-      history.replaceState({}, document.title, window.location.pathname);
-      decryptedOutputDiv.innerHTML = "<p>🔒 Too many failed attempts. Link cleared.</p>";
-    }
+    if(failed >= MAX_FAIL){ history.replaceState({},document.title,window.location.pathname); decryptedOutputDiv.innerHTML="<p>🔒 Too many failed attempts. Link cleared.</p>"; }
   }
 });
 
-///////////////////// paste from clipboard /////////////////////
-pastePassBtn?.addEventListener("click", async () => {
-  try {
-    const text = await navigator.clipboard.readText();
-    document.getElementById("decryptPasscode").value = text || "";
-    showToast("Passcode pasted");
-  } catch (err) {
-    showToast("Clipboard read failed");
-  }
+//////////////////// paste button ////////////////////
+pastePassBtn?.addEventListener("click", async ()=>{
+  try{ const txt = await navigator.clipboard.readText(); document.getElementById("decryptPasscode").value = txt || ""; showToast("Passcode pasted"); }
+  catch{ showToast("Clipboard read failed"); }
 });
 
-///////////////////// countdown helper ///////////////////////
-let countdownTimer = null;
-function startCountdown(expireAt, infoElement) {
-  if (countdownTimer) clearInterval(countdownTimer);
-  function tick() {
-    const remaining = expireAt - Date.now();
-    if (remaining <= 0) {
-      // expire now
-      infoElement.innerText = "⏳ Expired!";
-      decryptedOutputDiv.innerHTML = "<p>❌ This message has expired.</p>";
-      // remove params so it cannot be reused
-      history.replaceState({}, document.title, window.location.pathname);
-      if (countdownTimer) clearInterval(countdownTimer);
-      return;
-    }
-    const hrs = Math.floor(remaining / (1000 * 60 * 60));
-    const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-    const secs = Math.floor((remaining % (1000 * 60)) / 1000);
-    infoElement.innerText = `⏳ Expires in ${hrs}h ${mins}m ${secs}s`;
+//////////////////// countdown ////////////////////
+let timer=null;
+function startCountdown(expireAt, elem){
+  if(timer) clearInterval(timer);
+  function tick(){
+    const rem = expireAt - Date.now();
+    if(rem <= 0){ elem.innerText = "⏳ Expired!"; decryptedOutputDiv.innerHTML = "<p>❌ This message has expired.</p>"; history.replaceState({},document.title,window.location.pathname); clearInterval(timer); return; }
+    const h = Math.floor(rem / (1000*60*60));
+    const m = Math.floor((rem % (1000*60*60)) / (1000*60));
+    const s = Math.floor((rem % (1000*60)) / 1000);
+    elem.innerText = `⏳ Expires in ${h}h ${m}m ${s}s`;
   }
-  tick();
-  countdownTimer = setInterval(tick, 1000);
+  tick(); timer = setInterval(tick,1000);
 }
 
-///////////////////// page boot: show correct form & expiry info /////////////////////
-
-window.addEventListener("load", () => {
-  applyDarkPref();
+//////////////////// page boot ////////////////////
+window.addEventListener("load", ()=>{
+  applyDark();
   const params = new URLSearchParams(window.location.search);
-  if (params.has("msg")) {
-    // decrypt flow; show decrypt form and insert expiry summary at top
+  if(params.has("msg")){
     encryptForm.style.display = "none";
     decryptForm.style.display = "block";
-
-    const ttl = params.get("ttl");
-    const exp = params.get("exp");
-    let line = document.createElement("div");
-    line.style.marginBottom = "10px";
-    line.style.fontSize = "14px";
-    line.style.color = "#0b63b8";
-    line.style.fontWeight = "600";
-
-    if (ttl === "burn") line.innerText = "Expiry: 🔥 Burn after reading";
-    else if (ttl === "1") line.innerText = "Expiry: 👁 One-time view";
-    else if (ttl === "24h" && exp) {
-      const dt = new Date(parseInt(exp, 10));
-      line.innerText = `Expiry: ⏳ 24h (expires at ${dt.toLocaleString()})`;
-    } else line.innerText = "Expiry: ⏳ No expiry";
-
-    // insert above the passcode input
-    decryptForm.insertBefore(line, decryptForm.firstChild);
+    // show expiry summary above passcode
+    const ttl = params.get("ttl"); const exp = params.get("exp");
+    let summary = "Expiry: ⏳ No expiry";
+    if(ttl === "burn") summary = "Expiry: 🔥 Burn after reading";
+    else if(ttl === "1") summary = "Expiry: 👁 One-time view";
+    else if(ttl === "24h" && exp) summary = `Expiry: ⏳ 24h (expires at ${new Date(parseInt(exp,10)).toLocaleString()})`;
+    const info = document.createElement("div"); info.style.marginBottom="10px"; info.style.fontSize="14px"; info.style.color="#0b63b8"; info.style.fontWeight="600"; info.innerText = summary;
+    decryptForm.insertBefore(info, decryptForm.firstChild);
+    // Warn if payload is very big
+    const enc = params.get("msg") || "";
+    const approxBytes = Math.ceil((enc.length * 3) / 4);
+    if(approxBytes > MAX_BYTES) showToast("Warning: this link contains a large payload and may not work in some chat apps.");
   } else {
-    encryptForm.style.display = "block";
-    decryptForm.style.display = "none";
+    encryptForm.style.display = "block"; decryptForm.style.display = "none";
   }
 });
